@@ -1,0 +1,102 @@
+[
+    {
+        "initials": "LS_T01",
+        "port": 7,
+        "direction": 0
+    },
+    {
+        "initials": "LS_T02",
+        "port": 0,
+        "direction": 0
+    },
+    {
+        "initials": "LC_T",
+        "port": 2,
+        "direction": 0
+    },
+    {
+        "initials": "AC_T",
+        "port": 11,
+        "direction": 0
+    },
+    {
+        "initials": "SP_T",
+        "port": 25,
+        "direction": 1
+    },
+    {
+        "initials": "SF_T",
+        "port": 4,
+        "direction": 1
+    },
+    {
+        "initials": "SJ_T01",
+        "port": 13,
+        "direction": 1
+    },
+    {
+        "initials": "SJ_T02",
+        "port": 14,
+        "direction": 1
+    },
+    {
+        "initials": "SPo_T",
+        "port": 12,
+        "direction": 1
+    },
+    {
+        "initials": "SC_IN",
+        "port": 23,
+        "direction": 1
+    },
+    {
+        "initials": "SC_OUT",
+        "port": 24,
+        "direction": 1
+    },
+    {
+        "initials": "ASP",
+        "port": 27,
+        "direction": 0
+    },
+    {
+        "initials": "LS_101",
+        "port": 3,
+        "direction": 0
+    },
+    {
+        "initials": "LS_102",
+        "port": 6,
+        "direction": 0
+    },
+    {
+        "initials": "LC_1",
+        "port": 10,
+        "direction": 0
+    },
+    {
+        "initials": "AC_1",
+        "port": 26,
+        "direction": 0
+    },
+    {
+        "initials": "SP_1",
+        "port": 1,
+        "direction": 1
+    },
+    {
+        "initials": "SF_1",
+        "port": 5,
+        "direction": 1
+    },
+    {
+        "initials": "SJ_1",
+        "port": 21,
+        "direction": 1
+    },
+    {
+        "initials": "SJ_2",
+        "port": 22,
+        "direction": 1
+    }
+]
