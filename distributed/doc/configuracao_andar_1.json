@@ -1,6 +1,7 @@
 {
     "ip": "192.168.0.53",
     "porta": 1002,
+    "server_port": 5566,
     "nome": "1º Andar",
     "outputs": [
         {
