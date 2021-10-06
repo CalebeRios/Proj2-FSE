@@ -21,22 +21,22 @@ void handle_sensors(int pin, Module* modules, int size);
 void in(int pin, Module* modules, int size);
 void out(int pin, Module* modules, int size);
 
-void handle_pres_t(void) { handle_sensors(26, input_modules_t, input_size_t); }
-void handle_pres(void) { handle_sensors(18, input_modules_1f, input_size_1f); }
+void handle_pres_t(void) { handle_sensors(25, input_modules_t, input_size_t); }
+void handle_pres(void) { handle_sensors(1, input_modules_1f, input_size_1f); }
 
-void handle_smoke_t(void) { handle_sensors(23, input_modules_t, input_size_t); }
-void handle_smoke(void) { handle_sensors(24, input_modules_1f, input_size_1f); }
+void handle_smoke_t(void) { handle_sensors(4, input_modules_t, input_size_t); }
+void handle_smoke(void) { handle_sensors(5, input_modules_1f, input_size_1f); }
 
-void handle_window_t01(void) { handle_sensors(9, input_modules_t, input_size_t); }
-void handle_window_t02(void) { handle_sensors(11, input_modules_t, input_size_t); }
+void handle_window_t01(void) { handle_sensors(13, input_modules_t, input_size_t); }
+void handle_window_t02(void) { handle_sensors(14, input_modules_t, input_size_t); }
 
-void handle_window_01(void) { handle_sensors(5, input_modules_1f, input_size_1f); }
-void handle_window_02(void) { handle_sensors(6, input_modules_1f, input_size_1f); }
+void handle_window_01(void) { handle_sensors(21, input_modules_1f, input_size_1f); }
+void handle_window_02(void) { handle_sensors(22, input_modules_1f, input_size_1f); }
 
-void handle_door(void) { handle_sensors(10, input_modules_t, input_size_t); }
+void handle_door(void) { handle_sensors(12, input_modules_t, input_size_t); }
 
-void handle_in(void) { in(13, input_modules_t, input_size_t); }
-void handle_out(void) { out(19, input_modules_t, input_size_t); }
+void handle_in(void) { in(23, input_modules_t, input_size_t); }
+void handle_out(void) { out(24, input_modules_t, input_size_t); }
 
 void init_pwm_wiringPi() {
     wiringPiSetup();
@@ -56,10 +56,10 @@ void init_outputs(Module* modules, int size) {
         Module* module = &modules[i];
         
         pinMode(module->wiringPi, OUTPUT);
-        softPwmCreate(module->wiringPi, 0, 100);
+        softPwmCreate(module->wiringPi, 0, 1);
 
         module->value = digitalRead(module->wiringPi);
-        // printf("%s: %d\n", module->tag, module->value);
+        printf("%s: %d\n", module->tag, module->value);
     }
 
     sem_post(&mutex_output);
@@ -83,6 +83,8 @@ void init_inputs(Module* modules, int size, char* floor) {
 
         pinMode(module->wiringPi, INPUT);
 
+        module->value = digitalRead(module->wiringPi);
+
         if (strcmp(module->type, "presenca") == 0) {
             if (strcmp(floor, "terreo") == 0) {
                 wiringPiISR(module->wiringPi, INT_EDGE_BOTH, &handle_pres_t);
@@ -91,11 +93,10 @@ void init_inputs(Module* modules, int size, char* floor) {
             }
         } else if (strcmp(module->type, "fumaca") == 0) {
             if (strcmp(floor, "terreo") == 0) {
-                wiringPiISR(module->wiringPi, INT_EDGE_RISING, &handle_smoke_t);
+                wiringPiISR(module->wiringPi, INT_EDGE_BOTH, &handle_smoke_t);
             } else {
-                wiringPiISR(module->wiringPi, INT_EDGE_RISING, &handle_smoke);
+                wiringPiISR(module->wiringPi, INT_EDGE_BOTH, &handle_smoke);
             }
-            wiringPiISR(module->wiringPi, INT_EDGE_BOTH, &handle_smoke);
         } else if (strcmp(module->type, "janela") == 0) {
             if (strstr(module->tag, "T01")) {
                 wiringPiISR(module->wiringPi, INT_EDGE_BOTH, &handle_window_t01);
@@ -116,8 +117,7 @@ void init_inputs(Module* modules, int size, char* floor) {
             }
         }
 
-        module->value = digitalRead(module->wiringPi);
-        // printf("%s (%s): %d\n", module->tag, module->type, module->value);
+        printf("%s (%s): %d\n", module->tag, module->type, module->value);
     }
 
     sem_post(&mutex_input);
@@ -141,7 +141,7 @@ void handle_sensors(int pin, Module* modules, int size) {
     // printf("Window: %d\n", pin);
 
     for (int i = 0; i < size; i++) {
-        if (modules[i].gpio == pin) {
+        if (modules[i].wiringPi == pin) {
             module = &modules[i];
             break;
         }
@@ -149,17 +149,17 @@ void handle_sensors(int pin, Module* modules, int size) {
 
     module->value = !module->value;
 
-    sent_update_sensor(*module);
+    sent_update_sensor_in(pin, module->value);
 
-    printf("Value (%s): %d\n", module->tag, module->value);
+    // printf("Value (%s): %d\n", module->tag, module->value);
 }
 
 void in(int pin, Module* modules, int size) {
     Module* module;
-    printf("Window: %d\n", pin);
+    printf("IN: %d\n", pin);
 
     for (int i = 0; i < size; i++) {
-        if (modules[i].gpio == pin) {
+        if (modules[i].wiringPi == pin) {
             module = &modules[i];
             break;
         }
@@ -167,17 +167,17 @@ void in(int pin, Module* modules, int size) {
 
     module->value += module->value;
 
-    sent_update_sensor(*module);
+    sent_update_sensor_in(pin, module->value);
 
     printf("Value (%s): %d\n", module->tag, module->value);
 }
 
 void out(int pin, Module* modules, int size) {
     Module* module;
-    printf("Window: %d\n", pin);
+    printf("OUT: %d\n", pin);
 
     for (int i = 0; i < size; i++) {
-        if (modules[i].gpio == pin) {
+        if (modules[i].wiringPi == pin) {
             module = &modules[i];
             break;
         }
@@ -185,7 +185,7 @@ void out(int pin, Module* modules, int size) {
 
     module->value -= module->value;
 
-    sent_update_sensor(*module);
+    sent_update_sensor_in(pin, module->value);
 
     printf("Value (%s): %d\n", module->tag, module->value);
 }

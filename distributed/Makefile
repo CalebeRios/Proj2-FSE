@@ -1,5 +1,5 @@
 CC := gcc
-# CFLAGS := -Wall
+# CFLAGS := -Wall -lpthread
 CFLAGS := -Wall -lwiringPi -lpthread
 
 SRCFILES := $(wildcard ./src/*.c)

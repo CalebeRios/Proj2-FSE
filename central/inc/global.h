@@ -16,5 +16,6 @@ typedef struct {
 } Configuration;
 
 Configuration terreo, firstFloor;
+float temp, umi;
 
 #endif

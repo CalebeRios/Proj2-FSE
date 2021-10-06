@@ -4,16 +4,21 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <semaphore.h>
 
 #include "../inc/global.h"
+#include "../inc/display.h"
+#include "../inc/sensors.h"
 
-pthread_t pServerListen[5], pParser;
+sem_t mutex;
+pthread_t pServerListen[5], pParser[10];
 
 char *ip = "192.168.0.53";
 // char *ip = "127.0.0.1";
 int n;
-int client_socks[5];
+int client_sock;
 int clients = 0;
+int i_parser = 0;
 int server_sock;
 
 void listen_message(int sock);
@@ -22,11 +27,11 @@ void* parser_message(void *p);
 
 void destroy_server() {
     for(int i = 0; i < clients; i++) {
-        sent_message(client_socks[i], "Close Connection");
         pthread_cancel(pServerListen[i]);
         pthread_join(pServerListen[i], NULL);
-        close(client_socks[i]);
     }
+    sent_message(client_sock, "Close Connection");
+    close(client_sock);
     close(server_sock);
 }
 
@@ -38,12 +43,15 @@ void* init_server_listen(void* p) {
 int create_server(int port) {
     struct sockaddr_in server_addr;
 
+    config_mutex();
+    sem_init(&mutex, 0, 1);
+
     server_sock = socket(AF_INET, SOCK_STREAM, 0);
     if(server_sock < 0) {
-        perror("[-] Socket error");
+        write_in_logs("[-] Socket error");
         exit(1);
     }
-    printf("[+] TCP server socket created\n");
+    write_in_logs("[+] TCP server socket created\n");
 
     memset(&server_addr, '\0', sizeof(server_addr));
 
@@ -53,13 +61,18 @@ int create_server(int port) {
 
     n = bind(server_sock, (struct sockaddr*)&server_addr, sizeof(server_addr));
     if (n < 0) {
-        perror("[-] Bind error");
+        printf("[-] Bind error");
+        close_curses();
         exit(1);
     }
-    printf("[+] Bind to port number: %d\n", port);
+
+    char buf[30];
+
+    snprintf(buf, 30, "[+] Bind to port number: %d", port); // puts string into buffer
+    write_in_logs(buf);
 
     listen(server_sock, 5);
-    printf("Listening...\n");
+    write_in_logs("Listening...");
 
     return server_sock;
 }
@@ -69,10 +82,8 @@ void listen_client(int server_sock) {
         struct sockaddr_in client_addr;
         socklen_t addr_size = sizeof(client_addr);
 
-        int client_sock = accept(server_sock, (struct sockaddr*)&client_addr, &addr_size);
-        printf("[+] Client connected\n");
-        
-        client_socks[clients] = client_sock;
+        client_sock = accept(server_sock, (struct sockaddr*)&client_addr, &addr_size);
+        write_in_logs("[+] Client connected\n");
 
         pthread_create(&pServerListen[clients], NULL, init_server_listen, (void *) &client_sock);
 
@@ -86,17 +97,24 @@ void listen_message(int sock) {
 
     while(connection_established) {
         bzero(buffer, 1024);
-        int m = recv(sock, buffer, sizeof(buffer), 0);
-        // printf("Client with sock %d (%d): %s\n", sock, m, buffer);
+        recv(sock, buffer, sizeof(buffer), 0);
+        // write_in_logs(buffer);
 
         if (strstr(buffer, "Close Connection")) connection_established = 0;
 
-        char message[1024];
+        char *message = malloc(1024 * sizeof(char));
 
         strcpy(message, buffer);
 
-	    pthread_create(&pParser, NULL, parser_message, (void *)message);
+        if (i_parser == 9) {
+            i_parser = 0;
+        }
+
+	    pthread_create(&pParser[i_parser], NULL, parser_message, (void *)message);
+        i_parser++;
     }
+
+    write_in_logs("[-] Connection closed");
 
     close(sock);
 }
@@ -106,23 +124,16 @@ void sent_message(int sock, char *message) {
 
     bzero(buffer, 1024);
     strcpy(buffer, message);
-    printf("Server: %s\n", buffer);
+    // write_in_logs(strcat("Server: ", buffer));
 
     send(sock, buffer, strlen(buffer), 0);
 }
 
-int get_index(char *message) {
-    char *e;
-    int index;
-
-    e = strchr(message, '|');
-    return (int)(e - message);
-}
-
 void* parser_message(void *p) {
+    sem_wait(&mutex);
     char *message = (char *) p;
 
-    if (strstr(message, "Update")) {
+    if (strstr(message, "UpdateSensor")) {
         char mat[10][50];
         char *line;
         int i = 0;
@@ -132,14 +143,31 @@ void* parser_message(void *p) {
         while (line) {
             strcpy(mat[i], line);
             line = strtok(NULL, "|");
-            // printf("Token %d: %s\n", i, mat[i]);
+            write_in_logs(mat[i]);
 
             i++;
         }
 
-        printf("Tag: %s\n", mat[1]);
-        printf("Value: %d\n", atoi(mat[2]));
-    } else if(strstr(message, "Sensor")) {
+        for (int i = 0; i < terreo.inputSize; i++) {
+            if (terreo.inputs[i].wiringPi == atoi(mat[1])) {
+                terreo.inputs[i].value = atoi(mat[2]);
+                break;
+            }
+        }
+
+        for (int i = 0; i < firstFloor.inputSize; i++) {
+            if (firstFloor.inputs[i].wiringPi == atoi(mat[1])) {
+                firstFloor.inputs[i].value = atoi(mat[2]);
+                break;
+            }
+        }
+
+        clear_sensors();
+
+        update_all_inputs(&terreo);
+        update_all_inputs(&firstFloor);
+        update_temp_umi();
+    } else if (strstr(message, "UpdateCommand")) {
         char mat[10][50];
         char *line;
         int i = 0;
@@ -149,13 +177,51 @@ void* parser_message(void *p) {
         while (line) {
             strcpy(mat[i], line);
             line = strtok(NULL, "|");
-            // printf("Token %d: %s\n", i, mat[i]);
 
             i++;
         }
 
-        printf("Temp: %.1f%%\n", atof(mat[1]));
-        printf("Hum: %.1f%%\n", atof(mat[2]));
+        for (int i = 0; i < terreo.outputSize; i++) {
+            if (terreo.outputs[i].wiringPi == atoi(mat[1])) {
+                terreo.outputs[i].value = atoi(mat[2]);
+                break;
+            }
+        }
+
+        for (int i = 0; i < firstFloor.outputSize; i++) {
+            if (firstFloor.outputs[i].wiringPi == atoi(mat[1])) {
+                firstFloor.outputs[i].value = atoi(mat[2]);
+                break;
+            }
+        }
+
+        clear_commands();
+
+        update_all_outputs(&terreo);
+        update_all_outputs(&firstFloor);
+    } else if(strstr(message, "TempUm")) {
+        char mat[10][50];
+        char *line;
+        int i = 0;
+
+        line = strtok(strdup(message), "|");
+
+        while (line) {
+            strcpy(mat[i], line);
+            line = strtok(NULL, "|");
+            // write_in_logs(mat[i]);
+
+            i++;
+        }
+
+        temp = atof(mat[1]);
+        umi = atof(mat[2]);
+
+        clear_sensors();
+
+        update_all_inputs(&terreo);
+        update_all_inputs(&firstFloor);
+        update_temp_umi();
     } else if (strstr(message, "Config")) {
         char mat[100][50];
         char *line;
@@ -166,7 +232,8 @@ void* parser_message(void *p) {
         while (line) {
             strcpy(mat[i], line);
             line = strtok(NULL, "|\n");
-            // printf("Token %d: %s\n", i, mat[i]);
+            // write_in_logs(mat[i]);
+            // write_in_logs("Token %d: %s\n", i, mat[i]);
 
             i++;
         }
@@ -181,30 +248,30 @@ void* parser_message(void *p) {
             config = &firstFloor;
         }
 
-        config->name = mat[i];
+        config->name = malloc(strlen(mat[i])+1);
+        strcpy(config->name, mat[i]);
 
         i++;
         i++;
 
         config->outputSize = atoi(mat[i]);
         config->outputs = malloc(config->outputSize * sizeof(Module));
-    
-
-        int counter = 0;
 
         for(int j = 0; j < config->outputSize; j++) {
             Module mod;
 
             i++;
-            mod.tag = mat[i];
+            mod.tag = malloc(strlen(mat[i])+1);
+            strcpy(mod.tag, mat[i]);
             i++;
             mod.wiringPi = atoi(mat[i]);
             i++;
             mod.value = atoi(mat[i]);
 
-            config->outputs[counter] = mod;
-            counter++;
+            config->outputs[j] = mod;
         }
+
+        update_all_outputs(config);
         
         i++;
         i++;
@@ -212,24 +279,71 @@ void* parser_message(void *p) {
         config->inputSize = atoi(mat[i]);
         config->inputs = malloc(config->inputSize * sizeof(Module));
 
-        counter = 0;
-
         for(int j = 0; j < config->inputSize; j++) {
             Module mod;
 
             i++;
-            mod.tag = mat[i];
+            mod.tag = malloc(strlen(mat[i])+1);
+            strcpy(mod.tag, mat[i]);
             i++;
             mod.wiringPi = atoi(mat[i]);
             i++;
             mod.value = atoi(mat[i]);
 
-            config->inputs[counter] = mod;
-            counter++;
+            config->inputs[j] = mod;
         }
 
-        printf("%s: O-%d I-%d\n", config->name, config->outputSize, config->inputSize);
-        printf("%s: T-%s W-%d V-%d\n", config->name, config->outputs[0].tag, config->outputs[0].wiringPi, config->outputs[0].value);
-        printf("%s: T-%s W-%d V-%d\n", config->name, config->inputs[0].tag, config->inputs[0].wiringPi, config->inputs[0].value);
+        update_all_inputs(config);
+    }
+
+    sem_post(&mutex);
+}
+
+void log_command(Module module) {
+    char message[1024];
+    bzero(message, 1024);
+    
+    if (!module.value) {
+        strcat(message, "Você está tentando ligar o ");
+    } else {
+        strcat(message, "Você está tentando desligar o ");
+    }
+
+    strcat(message, module.tag);
+
+    write_in_logs(message);
+}
+
+char *mount_command(Module module) {
+    char command[1024];
+    char *num;
+
+    bzero(command, 1024);
+
+    strcat(command, "Command|");
+    asprintf(&num, "%d", module.wiringPi);
+    strcat(command, num);
+    strcat(command, "|");
+    asprintf(&num, "%d", module.value);
+    strcat(command, num);
+
+    log_command(module);
+    sent_message(client_sock, command);
+    sleep(1);
+}
+
+void sent_command(int pin) {
+    for (int i = 0; i < terreo.outputSize; i++) {
+        if (terreo.outputs[i].wiringPi == pin) {
+            mount_command(terreo.outputs[i]);
+            return;
+        }
+    }
+
+    for (int i = 0; i < firstFloor.outputSize; i++) {
+        if (firstFloor.outputs[i].wiringPi == pin) {
+            mount_command(firstFloor.outputs[i]);
+            return;
+        }
     }
 }

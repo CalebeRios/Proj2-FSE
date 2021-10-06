@@ -1,8 +1,12 @@
 #include <semaphore.h>
+#include <pthread.h>
+#include <string.h>
 
 #include "../inc/client.h"
+#include "../inc/wiring-pi.h"
 
 sem_t mutex;
+pthread_t pParser;
 
 // char *ip = "127.0.0.1";
 char *ip = "192.168.0.53";
@@ -10,6 +14,8 @@ char *ip = "192.168.0.53";
 int sock;
 struct sockaddr_in addr;
 int connection_established = 1;
+
+void* parser_message(void *p);
 
 void destroy_client() {
     sent_message("Close Connection");
@@ -49,16 +55,24 @@ void listen_message() {
     while(connection_established) {
         bzero(buffer, 1024);
         recv(sock, buffer, sizeof(buffer), 0);
-        printf("Server: %s\n", buffer);
+        // printf("Server: %s\n", buffer);
 
-        if (strstr(buffer, "Close Connection")) {
-            connection_established = 0;
-            close(sock);
-        }
+        if (strstr(buffer, "Close Connection")) connection_established = 0;
+
+        char *message = malloc(1024 * sizeof(char));
+
+        strcpy(message, buffer);
+
+	    pthread_create(&pParser, NULL, parser_message, (void *)message);
     }
+
+    printf("[-] Connection closed");
+
+    close(sock);
 }
 
 void sent_message(char *message) {
+    sem_wait(&mutex);
     char buffer[1024];
 
     bzero(buffer, 1024);
@@ -66,6 +80,10 @@ void sent_message(char *message) {
     printf("Client: %s\n", buffer);
 
     send(sock, buffer, strlen(buffer), 0);
+
+    sem_post(&mutex);
+
+    sleep(1);
 }
 
 void sent_configuration(Configuration config) {
@@ -115,7 +133,7 @@ void sent_temp_hum(float hum, float temp) {
 
     bzero(message, 1024);
 
-    strcat(message, "Sensor|");
+    strcat(message, "TempUm |");
     sprintf(num, "%.1f", temp);
     strcat(message, num);
     strcat(message, "|");
@@ -125,17 +143,60 @@ void sent_temp_hum(float hum, float temp) {
     sent_message(message);
 }
 
-void sent_update_sensor(Module module) {
+void sent_update_sensor_in(int pin, int value) {
     char message[1024];
     char *num;
 
     bzero(message, 1024);
 
-    strcat(message, "Update|");
-    strcat(message, module.tag);
+    strcat(message, "UpdateSensor |");
+    asprintf(&num, "%d", pin);
+    strcat(message, num);
     strcat(message, "|");
-    asprintf(&num, "%d", module.value);
+    asprintf(&num, "%d", value);
     strcat(message, num);
 
     sent_message(message);
+}
+
+void sent_update_sensor_out(int pin, int value) {
+    char message[1024];
+    char *num;
+
+    bzero(message, 1024);
+
+    strcat(message, "UpdateCommand |");
+    asprintf(&num, "%d", pin);
+    strcat(message, num);
+    strcat(message, "|");
+    asprintf(&num, "%d", value);
+    strcat(message, num);
+
+    sent_message(message);
+}
+
+void* parser_message(void *p) {
+    char *message = (char *) p;
+
+    if (strstr(message, "Command")) {
+        char mat[10][50];
+        char *line;
+        int i = 0;
+
+        line = strtok(strdup(message), "|");
+
+        while (line) {
+            strcpy(mat[i], line);
+            line = strtok(NULL, "|");
+            // printf("Token %d: %s\n", i, mat[i]);
+
+            i++;
+        }
+
+        printf("%s: %d %d\n", message, atoi(mat[1]), !atoi(mat[2]));
+
+        turn_pin(atoi(mat[1]), !atoi(mat[2]));
+
+        sent_update_sensor_out(atoi(mat[1]), !atoi(mat[2]));
+    }
 }

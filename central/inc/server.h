@@ -16,5 +16,6 @@ void destroy_server();
 int create_server(int port);
 void listen_client(int server_sock);
 void sent_message(int sock, char *message);
+void sent_command(int pin);
 
 #endif

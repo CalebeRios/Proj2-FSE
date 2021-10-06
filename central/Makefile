@@ -1,5 +1,5 @@
 CC := gcc
-CFLAGS := -Wall -lpthread
+CFLAGS := -Wall -lpthread -lncurses
 
 SRCFILES := $(wildcard ./src/*.c)
 
