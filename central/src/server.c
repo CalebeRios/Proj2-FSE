@@ -9,12 +9,12 @@
 #include "../inc/global.h"
 #include "../inc/display.h"
 #include "../inc/sensors.h"
+#include "../inc/csv.h"
 
 sem_t mutex;
 pthread_t pServerListen[5], pParser[10];
 
 char *ip = "192.168.0.53";
-// char *ip = "127.0.0.1";
 int n;
 int client_sock;
 int clients = 0;
@@ -68,7 +68,7 @@ int create_server(int port) {
 
     char buf[30];
 
-    snprintf(buf, 30, "[+] Bind to port number: %d", port); // puts string into buffer
+    snprintf(buf, 30, "[+] Bind to port number: %d", port);
     write_in_logs(buf);
 
     listen(server_sock, 5);
@@ -98,7 +98,6 @@ void listen_message(int sock) {
     while(connection_established) {
         bzero(buffer, 1024);
         recv(sock, buffer, sizeof(buffer), 0);
-        // write_in_logs(buffer);
 
         if (strstr(buffer, "Close Connection")) connection_established = 0;
 
@@ -124,16 +123,41 @@ void sent_message(int sock, char *message) {
 
     bzero(buffer, 1024);
     strcpy(buffer, message);
-    // write_in_logs(strcat("Server: ", buffer));
 
     send(sock, buffer, strlen(buffer), 0);
+}
+
+void log(char *message, int value) {
+    char log[1024];
+    char *num;
+    bzero(log, 1024);
+
+    strcat(log, message);
+    strcat(log, " ");
+    asprintf(&num, "%d", value);
+    strcat(log, num);
+
+    write_in_logs(log);
+}
+
+void log_float(char *message, int value) {
+    char log[1024];
+    char *num;
+    bzero(log, 1024);
+
+    strcat(log, message);
+    strcat(log, " ");
+    asprintf(&num, "%d", value);
+    strcat(log, num);
+
+    write_in_logs(log);
 }
 
 void* parser_message(void *p) {
     sem_wait(&mutex);
     char *message = (char *) p;
 
-    if (strstr(message, "UpdateSensor")) {
+    if (strstr(message, "UpdatePeople")) {
         char mat[10][50];
         char *line;
         int i = 0;
@@ -143,7 +167,34 @@ void* parser_message(void *p) {
         while (line) {
             strcpy(mat[i], line);
             line = strtok(NULL, "|");
-            write_in_logs(mat[i]);
+
+            i++;
+        }
+
+        int a = atoi(mat[1]);
+
+        if (a > 0 || (a < 0 && qtd_people > 0) ) {
+            qtd_people += a;
+        }
+
+        log("Quantidade de pessoas no predio", qtd_people);
+
+        clear_sensors();
+
+        update_all_inputs(&terreo);
+        update_all_inputs(&firstFloor);
+        update_temp_umi();
+        update_people();
+    } else if (strstr(message, "UpdateSensor")) {
+        char mat[10][50];
+        char *line;
+        int i = 0;
+
+        line = strtok(strdup(message), "|");
+
+        while (line) {
+            strcpy(mat[i], line);
+            line = strtok(NULL, "|");
 
             i++;
         }
@@ -151,6 +202,10 @@ void* parser_message(void *p) {
         for (int i = 0; i < terreo.inputSize; i++) {
             if (terreo.inputs[i].wiringPi == atoi(mat[1])) {
                 terreo.inputs[i].value = atoi(mat[2]);
+
+                log(terreo.inputs[i].tag, terreo.inputs[i].value);
+
+                write_csv(terreo.inputs[i].tag, terreo.inputs[i].wiringPi, terreo.inputs[i].value);
                 break;
             }
         }
@@ -158,6 +213,10 @@ void* parser_message(void *p) {
         for (int i = 0; i < firstFloor.inputSize; i++) {
             if (firstFloor.inputs[i].wiringPi == atoi(mat[1])) {
                 firstFloor.inputs[i].value = atoi(mat[2]);
+
+                log(firstFloor.inputs[i].tag, firstFloor.inputs[i].value);
+
+                write_csv(firstFloor.inputs[i].tag, firstFloor.inputs[i].wiringPi, firstFloor.inputs[i].value);
                 break;
             }
         }
@@ -167,6 +226,7 @@ void* parser_message(void *p) {
         update_all_inputs(&terreo);
         update_all_inputs(&firstFloor);
         update_temp_umi();
+        update_people();
     } else if (strstr(message, "UpdateCommand")) {
         char mat[10][50];
         char *line;
@@ -184,6 +244,10 @@ void* parser_message(void *p) {
         for (int i = 0; i < terreo.outputSize; i++) {
             if (terreo.outputs[i].wiringPi == atoi(mat[1])) {
                 terreo.outputs[i].value = atoi(mat[2]);
+
+                log(terreo.outputs[i].tag, terreo.outputs[i].value);
+
+                write_csv(terreo.outputs[i].tag, terreo.outputs[i].wiringPi, terreo.outputs[i].value);
                 break;
             }
         }
@@ -191,6 +255,10 @@ void* parser_message(void *p) {
         for (int i = 0; i < firstFloor.outputSize; i++) {
             if (firstFloor.outputs[i].wiringPi == atoi(mat[1])) {
                 firstFloor.outputs[i].value = atoi(mat[2]);
+
+                log(firstFloor.outputs[i].tag, firstFloor.outputs[i].value);
+
+                write_csv(firstFloor.outputs[i].tag, firstFloor.outputs[i].wiringPi, firstFloor.outputs[i].value);
                 break;
             }
         }
@@ -209,7 +277,6 @@ void* parser_message(void *p) {
         while (line) {
             strcpy(mat[i], line);
             line = strtok(NULL, "|");
-            // write_in_logs(mat[i]);
 
             i++;
         }
@@ -217,11 +284,15 @@ void* parser_message(void *p) {
         temp = atof(mat[1]);
         umi = atof(mat[2]);
 
+        log_float("Temperatura", temp);
+        log_float("Umidade", umi);
+
         clear_sensors();
 
         update_all_inputs(&terreo);
         update_all_inputs(&firstFloor);
         update_temp_umi();
+        update_people();
     } else if (strstr(message, "Config")) {
         char mat[100][50];
         char *line;
@@ -232,8 +303,6 @@ void* parser_message(void *p) {
         while (line) {
             strcpy(mat[i], line);
             line = strtok(NULL, "|\n");
-            // write_in_logs(mat[i]);
-            // write_in_logs("Token %d: %s\n", i, mat[i]);
 
             i++;
         }

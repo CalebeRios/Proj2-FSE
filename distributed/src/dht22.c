@@ -5,7 +5,6 @@
 
 #include "../inc/dht22.h"
 
-// CONSTANTS 
 #define MAX_TIMINGS	85
 #define DEBUG 1
 #define WAIT_TIME 2000

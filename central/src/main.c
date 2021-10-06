@@ -1,20 +1,19 @@
 #include <stdio.h>
 #include <signal.h>
 #include <pthread.h>
-#include <ncurses.h>
 
 #include "../inc/server.h"
 #include "../inc/display.h"
+#include "../inc/csv.h"
 
-pthread_t pServerConnect;
-
-WINDOW *create_newwin(int height, int width, int starty, int startx);
+pthread_t pServerConnect, pWaitCommand;
 
 void handle_sigint(int sig) {
     pthread_cancel(pServerConnect);
-    pthread_join(pServerConnect, NULL);
+    pthread_cancel(pWaitCommand);
     destroy_server();
     endwin();
+    close_csv();
     exit(0);
 }
 
@@ -23,14 +22,23 @@ void* init_server_connect(void* p) {
     listen_client(server);
 }
 
+void* command(void* p) {
+    wait_command();
+}
+
 int main() {
     signal(SIGINT, handle_sigint);
 
     display();
 
-    pthread_create(&pServerConnect, NULL, init_server_connect, NULL);
+    init_csv();
 
-    wait_command();
+    pthread_create(&pServerConnect, NULL, init_server_connect, NULL);
+    pthread_create(&pWaitCommand, NULL, command, NULL);
+
+    for(;;) {
+        sleep(1);
+    }
 
     return 0;
 }

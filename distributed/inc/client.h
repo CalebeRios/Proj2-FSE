@@ -21,6 +21,7 @@ void listen_message();
 void sent_message(char *message);
 void sent_configuration(Configuration config);
 void sent_temp_hum(float hum, float temp);
+void sent_update_sensor_people(int value);
 void sent_update_sensor_in(int pin, int value);
 void sent_update_sensor_out(int pin, int value);
 

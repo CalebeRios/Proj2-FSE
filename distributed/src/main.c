@@ -11,12 +11,11 @@
 #include "../inc/dht22.h"
 #include "../inc/client.h"
 
-pthread_t pTerreo, pFirstFloor, pSensors, pClient;
+pthread_t pDistributed, pSensors, pClient;
 Configuration terreo, firstFloor;
 
 void handle_sigint(int sig) {
-    // pthread_cancel(pTerreo);
-    pthread_cancel(pFirstFloor);
+    pthread_cancel(pDistributed);
     pthread_cancel(pSensors);
     pthread_cancel(pClient);
 
@@ -29,24 +28,13 @@ void handle_sigint(int sig) {
 }
 
 void* init_client(void* p) {
-    // sent_message("Hello, this is a client");
     listen_message();
 }
 
-void* init_terreo(void* p) {
-
-    // init_outputs(terreo.outputs, terreo.outputSize);
-    // init_inputs(terreo.inputs, terreo.inputSize, "terreo");
-
-    // sent_configuration(terreo);
-}
-
-void* init_first_floor(void* p) {
-    // char *json = read_file("/Users/calebe.rios/Developer/UnB/fse/0.Projetos/2.proj/distributed/doc/configuracao_andar_1.json");
+void* init_distributed(void* p) {
     char *json = read_file("/home/calebemendes/2.proj/distributed/doc/configuracao_andar_1.json");
     firstFloor = parse_json(json);
 
-    // json = read_file("/Users/calebe.rios/Developer/UnB/fse/0.Projetos/2.proj/distributed/doc/configuracao_andar_terreo.json");
     json = read_file("/home/calebemendes/2.proj/distributed/doc/configuracao_andar_terreo.json");
     terreo = parse_json(json);
 
@@ -78,8 +66,7 @@ int main() {
 
     pthread_create(&pSensors, NULL, read_sensors, NULL);
     pthread_create(&pClient, NULL, init_client, NULL);
-    // pthread_create(&pTerreo, NULL, init_terreo, NULL);
-    pthread_create(&pFirstFloor, NULL, init_first_floor, NULL);
+    pthread_create(&pDistributed, NULL, init_distributed, NULL);
 
     for(;;) {
         sleep(1);

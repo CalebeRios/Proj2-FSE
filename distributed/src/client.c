@@ -7,8 +7,6 @@
 
 sem_t mutex;
 pthread_t pParser;
-
-// char *ip = "127.0.0.1";
 char *ip = "192.168.0.53";
 
 int sock;
@@ -55,7 +53,6 @@ void listen_message() {
     while(connection_established) {
         bzero(buffer, 1024);
         recv(sock, buffer, sizeof(buffer), 0);
-        // printf("Server: %s\n", buffer);
 
         if (strstr(buffer, "Close Connection")) connection_established = 0;
 
@@ -143,6 +140,19 @@ void sent_temp_hum(float hum, float temp) {
     sent_message(message);
 }
 
+void sent_update_sensor_people(int value) {
+    char message[1024];
+    char *num;
+
+    bzero(message, 1024);
+
+    strcat(message, "UpdatePeople |");
+    asprintf(&num, "%d", value);
+    strcat(message, num);
+
+    sent_message(message);
+}
+
 void sent_update_sensor_in(int pin, int value) {
     char message[1024];
     char *num;
@@ -188,7 +198,6 @@ void* parser_message(void *p) {
         while (line) {
             strcpy(mat[i], line);
             line = strtok(NULL, "|");
-            // printf("Token %d: %s\n", i, mat[i]);
 
             i++;
         }

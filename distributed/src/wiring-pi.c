@@ -45,8 +45,6 @@ void init_pwm_wiringPi() {
 }
 
 void init_outputs(Module* modules, int size) {
-    // printf("OUTPUTS\n");
-
     sem_wait(&mutex_output);
 
     output_modules = modules;
@@ -66,8 +64,6 @@ void init_outputs(Module* modules, int size) {
 }
 
 void init_inputs(Module* modules, int size, char* floor) {
-    // printf("INPUTS\n");
-
     sem_wait(&mutex_input);
 
     if (strcmp(floor, "terreo") == 0) {
@@ -138,7 +134,6 @@ void turn_pin(int pin, int on) {
 
 void handle_sensors(int pin, Module* modules, int size) {
     Module* module;
-    // printf("Window: %d\n", pin);
 
     for (int i = 0; i < size; i++) {
         if (modules[i].wiringPi == pin) {
@@ -151,12 +146,11 @@ void handle_sensors(int pin, Module* modules, int size) {
 
     sent_update_sensor_in(pin, module->value);
 
-    // printf("Value (%s): %d\n", module->tag, module->value);
+    printf("Value (%s): %d\n", module->tag, module->value);
 }
 
 void in(int pin, Module* modules, int size) {
     Module* module;
-    printf("IN: %d\n", pin);
 
     for (int i = 0; i < size; i++) {
         if (modules[i].wiringPi == pin) {
@@ -165,16 +159,17 @@ void in(int pin, Module* modules, int size) {
         }
     }
 
-    module->value += module->value;
+    module->value += 1;
 
     sent_update_sensor_in(pin, module->value);
+    usleep(50);
+    sent_update_sensor_people(1);
 
     printf("Value (%s): %d\n", module->tag, module->value);
 }
 
 void out(int pin, Module* modules, int size) {
     Module* module;
-    printf("OUT: %d\n", pin);
 
     for (int i = 0; i < size; i++) {
         if (modules[i].wiringPi == pin) {
@@ -183,9 +178,11 @@ void out(int pin, Module* modules, int size) {
         }
     }
 
-    module->value -= module->value;
+    module->value += 1;
 
     sent_update_sensor_in(pin, module->value);
+    usleep(50);
+    sent_update_sensor_people(-1);
 
     printf("Value (%s): %d\n", module->tag, module->value);
 }

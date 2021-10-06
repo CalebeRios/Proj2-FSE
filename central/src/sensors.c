@@ -28,8 +28,6 @@ void update_all_outputs(Configuration *config) {
         write_in_menu(config->outputs[i].wiringPi, message);
     }
 
-    write_in_logs("Update Outputs");
-
     sem_post(&mutex_output);
 }
 
@@ -40,12 +38,14 @@ void update_all_inputs(Configuration *config) {
         write_in_sensors(config->inputs[i].tag, config->inputs[i].value);
     }
 
-    write_in_logs("Update Inputs");
-
     sem_post(&mutex_input);
 }
 
 void update_temp_umi() {
     write_in_sensors_float("Temperatura", temp);
     write_in_sensors_float("Umidade", umi);
+}
+
+void update_people() {
+    write_in_sensors_float("Quantidade de Pessoas", qtd_people);
 }

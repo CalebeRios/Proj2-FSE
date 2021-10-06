@@ -1,5 +1,5 @@
-#ifndef GLOBAL_H
-#define GLOBAL_H
+#ifndef _GLOBAL_H
+#define _GLOBAL_H
 
 typedef struct {
     char* tag;
@@ -17,5 +17,6 @@ typedef struct {
 
 Configuration terreo, firstFloor;
 float temp, umi;
+static int qtd_people = 0;
 
 #endif
