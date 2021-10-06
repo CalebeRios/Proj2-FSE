@@ -29,8 +29,7 @@ char* read_string(cJSON* json, char* value) {
     cJSON* container = NULL;
 
     container = cJSON_GetObjectItemCaseSensitive(json, value);
-    if (cJSON_IsString(container))
-    {
+    if (cJSON_IsString(container)) {
         return container->valuestring;
     }
 

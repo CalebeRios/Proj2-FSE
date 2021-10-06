@@ -46,6 +46,8 @@ int create_server(int port) {
     config_mutex();
     sem_init(&mutex, 0, 1);
 
+    qtd_people = 0;
+
     server_sock = socket(AF_INET, SOCK_STREAM, 0);
     if(server_sock < 0) {
         write_in_logs("[-] Socket error");
@@ -61,7 +63,7 @@ int create_server(int port) {
 
     n = bind(server_sock, (struct sockaddr*)&server_addr, sizeof(server_addr));
     if (n < 0) {
-        printf("[-] Bind error");
+        printf("[-] Bind error\n");
         close_curses();
         exit(1);
     }

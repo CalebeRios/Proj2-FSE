@@ -24,7 +24,7 @@ void display() {
     refresh();
 
     sensors_win = create_newwin(height, width, 0, 0, "Informações dos sensores");
-    info_win = create_newwin(height, width, 0, (COLS / 2), "Comandos");
+    info_win = create_newwin(height, width, 0, (COLS / 2), "Comandos (Digite um número e aperte enter)");
     logs_win = create_newwin(height, COLS, LINES / 2, 0, "Logs");
 
     mvwprintw(info_win, 3, 1, "ctrl+c - Sair");
@@ -35,7 +35,7 @@ void clear_commands() {
 
     i_info = 4;
 
-    mvwprintw(info_win, 1, 1, "Comandos");
+    mvwprintw(info_win, 1, 1, "Comandos (Digite um número e aperte enter)");
     mvwprintw(info_win, 2, 1, "--------------------------");
 
     mvwprintw(info_win, 3, 1, "ctrl+c - Sair");

@@ -17,6 +17,6 @@ typedef struct {
 
 Configuration terreo, firstFloor;
 float temp, umi;
-static int qtd_people = 0;
+int qtd_people;
 
 #endif

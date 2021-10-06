@@ -2,6 +2,7 @@
     "files.associations": {
         "stdio.h": "c",
         "display.h": "c",
-        "csv.h": "c"
+        "csv.h": "c",
+        "global.h": "c"
     }
 }

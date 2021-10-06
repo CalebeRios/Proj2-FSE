@@ -48,6 +48,16 @@ Na imagem a seguir, podemos ver o sistema completo com já com o serviço `distr
 
 ![asdads](central/doc/Central2.png)
 
+## **Erro**
+
+Se o serviço `central` estiver dando o seguinte erro:
+
+```
+[-] Bind error
+```
+
+Espere um pouco antes de tentar novamente.
+
 ## **Mais informações**
 
 Neste projeto foram utilizados as seguintes bibliotecas:

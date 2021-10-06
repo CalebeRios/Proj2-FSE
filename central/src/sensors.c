@@ -47,5 +47,5 @@ void update_temp_umi() {
 }
 
 void update_people() {
-    write_in_sensors_float("Quantidade de Pessoas", qtd_people);
+    write_in_sensors("Quantidade de Pessoas", qtd_people);
 }
